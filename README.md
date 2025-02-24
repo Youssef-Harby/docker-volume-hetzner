@@ -1,5 +1,5 @@
-[![Go Report Card](https://goreportcard.com/badge/github.com/costela/docker-volume-hetzner)](https://goreportcard.com/report/github.com/costela/docker-volume-hetzner)
-![tests](https://github.com/costela/docker-volume-hetzner/actions/workflows/main.yaml/badge.svg)
+[![Go Report Card](https://goreportcard.com/badge/github.com/Youssef-Harby/docker-volume-hetzner)](https://goreportcard.com/report/github.com/Youssef-Harby/docker-volume-hetzner)
+![tests](https://github.com/Youssef-Harby/docker-volume-hetzner/actions/workflows/main.yaml/badge.svg)
 
 # Docker Volume Plugin for Hetzner Cloud
 
@@ -11,7 +11,7 @@ This plugin manages docker volumes using Hetzner Cloud's volumes.
 
 To install the plugin, run the following command:
 ```shell
-$ docker plugin install --alias hetzner ghcr.io/costela/docker-volume-hetzner:...-amd64
+$ docker plugin install --alias hetzner ghcr.io/youssef-harby/docker-volume-hetzner:...-amd64
 ```
 
 When using Docker Swarm, this should be done on all nodes in the cluster.
@@ -62,6 +62,24 @@ If the volume `docker-foo_somevolume` does not exist in the Hetzner Cloud projec
 
 The plugin will then mount the volume on the node running its parent service, if any.
 
+### Resizing Volumes
+
+The plugin now supports resizing existing volumes. To resize a volume:
+
+```shell
+$ docker volume resize <volume_name> --opts size=<new_size_in_gb>
+```
+
+For example, to resize a volume named "myvolume" to 50GB:
+```shell
+$ docker volume resize myvolume --opts size=50
+```
+
+**Note**: 
+- The volume must be detached from any container before resizing
+- You can only increase the size of a volume, not decrease it
+- After resizing, the filesystem will be automatically expanded to use the new space
+
 ## Configuration
 
 The following options can be passed to the plugin via `docker plugin set` (all names **case-sensitive**):
@@ -96,10 +114,4 @@ volumes:
 applies to the docker volumes using them. This also precludes concurrent use by multiple containers on the same node,
 since there is currently no way to enforce docker swarm services to be managed together (cf. kubernetes pods).
 - *Single location*: since volumes are currently bound to the location they were created in, this plugin will not
-be able to reattach a volume if you have a swarm cluster across locations and its service migrates over the location
-boundary.
-- *Volume resizing*: docker has no support for updating volume definitions. After a volume is created, its `size`
-option is currently ignored. This may be worked around in a future release.
-- *Docker partitions*: when used in a docker swarm setup, there is a chance a network hiccup between docker nodes
-might be seen as a node down, in which case the scheduler will start the container on a different node and will
-"steal" its volume while in use, potentially causing data loss.
+be able to move volumes between nodes in different locations.

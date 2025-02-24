@@ -70,3 +70,23 @@ func setPermissions(dev, fstype string, uid int, gid int) (err error) {
 
 	return nil
 }
+
+func resizeFS(dev, fstype, mountpoint string) error {
+	var cmd *exec.Cmd
+	switch fstype {
+	case "ext2", "ext3", "ext4":
+		cmd = exec.Command("resize2fs", dev)
+	case "xfs":
+		cmd = exec.Command("xfs_growfs", mountpoint)
+	default:
+		return fmt.Errorf("unsupported filesystem %q for resizing", fstype)
+	}
+	
+	var stderr bytes.Buffer
+	cmd.Stderr = &stderr
+	if err := cmd.Run(); err != nil {
+		logrus.Errorf("resize stderr: %s", stderr.String())
+		return fmt.Errorf("resizing filesystem: %w", err)
+	}
+	return nil
+}
