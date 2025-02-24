@@ -13,8 +13,8 @@ import (
 	"github.com/hashicorp/go-multierror"
 	"github.com/hetznercloud/hcloud-go/v2/hcloud"
 	"github.com/sirupsen/logrus"
-
 	"github.com/docker/go-plugins-helpers/volume"
+	"github.com/Youssef-Harby/docker-volume-hetzner/types"
 )
 
 // used in methods that take &bools
@@ -519,4 +519,67 @@ func nameHasPrefix(name string) bool {
 
 func useProtection() bool {
 	return os.Getenv("use_protection") == "true"
+}
+
+func (hd *hetznerDriver) Resize(req *types.ResizeRequest) error {
+	if err := hd.checkBackoff(); err != nil {
+		return err
+	}
+
+	prefixedName := prefixName(req.Name)
+	logrus.Infof("starting volume resize for %q", prefixedName)
+
+	vol, _, err := hd.client.Volume().GetByName(context.Background(), prefixedName)
+	if err != nil || vol == nil {
+		return fmt.Errorf("getting cloud volume %q: %w", prefixedName, err)
+	}
+
+	newSize, err := strconv.Atoi(getOption("size", req.Options))
+	if err != nil {
+		return fmt.Errorf("converting new size %q to int: %w", getOption("size", req.Options), err)
+	}
+	if newSize <= vol.Size {
+		return fmt.Errorf("new size %d must be greater than current size %d", newSize, vol.Size)
+	}
+
+	// Optionally detach if attached
+	if vol.Server != nil && vol.Server.ID != 0 {
+		logrus.Infof("detaching volume %q before resizing", prefixedName)
+		act, _, err := hd.client.Volume().Detach(context.Background(), vol)
+		if err != nil {
+			return fmt.Errorf("detaching volume %q: %w", prefixedName, err)
+		}
+		if err := hd.waitForAction(act); err != nil {
+			return fmt.Errorf("waiting for volume detachment on %q: %w", prefixedName, err)
+		}
+	}
+
+	logrus.Infof("resizing volume %q to %dGB", prefixedName, newSize)
+	act, _, err := hd.client.Volume().Resize(context.Background(), vol, newSize)
+	if err != nil {
+		return fmt.Errorf("resizing volume %q: %w", prefixedName, err)
+	}
+	if err := hd.waitForAction(act); err != nil {
+		return fmt.Errorf("waiting for volume resize on %q: %w", prefixedName, err)
+	}
+
+	// Reattach if previously attached
+	if vol.Server != nil && vol.Server.ID != 0 {
+		srv, _, err := hd.client.Server().GetByID(context.Background(), vol.Server.ID)
+		if err != nil {
+			return fmt.Errorf("fetching server details for volume %q: %w", prefixedName, err)
+		}
+		logrus.Infof("reattaching volume %q to server %q", prefixedName, srv.Name)
+		act, _, err := hd.client.Volume().Attach(context.Background(), vol, srv)
+		if err != nil {
+			return fmt.Errorf("reattaching volume %q to server %q: %w", prefixedName, srv.Name, err)
+		}
+		if err := hd.waitForAction(act); err != nil {
+			return fmt.Errorf("waiting for volume attachment on %q to %q: %w", prefixedName, srv.Name, err)
+		}
+	}
+
+	logrus.Infof("volume %q resized successfully to %dGB", prefixedName, newSize)
+	hd.handleBackoff(nil)
+	return nil
 }

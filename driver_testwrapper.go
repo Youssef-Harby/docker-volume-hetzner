@@ -21,6 +21,7 @@ type hetznerVolumeClienter interface {
 	Delete(context.Context, *hcloud.Volume) (*hcloud.Response, error)
 	Detach(context.Context, *hcloud.Volume) (*hcloud.Action, *hcloud.Response, error)
 	GetByName(context.Context, string) (*hcloud.Volume, *hcloud.Response, error)
+	Resize(context.Context, *hcloud.Volume, int) (*hcloud.Action, *hcloud.Response, error)
 }
 
 type hetznerServerClienter interface {
