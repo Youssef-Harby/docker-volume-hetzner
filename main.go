@@ -39,20 +39,12 @@ func main() {
 	// Default behavior: start the plugin
 	logrus.SetFormatter(&bareFormatter{})
 
-	var (
-		defaultDir  = volume.DefaultDockerRootDirectory
-		defaultSize = 10 // GB
-		defaultFS   = "ext4"
-		defaultProt = true
-		logLevel    = "info" // Changed from warn to info for better debugging
-	)
-
-	logLevelEnv, err := logrus.ParseLevel(os.Getenv("loglevel"))
+	logLevel, err := logrus.ParseLevel(os.Getenv("loglevel"))
 	if err != nil {
-		logLevelEnv = logrus.InfoLevel
+		logrus.Fatalf("could not parse log level %s", os.Getenv("loglevel"))
 	}
 
-	logrus.SetLevel(logLevelEnv)
+	logrus.SetLevel(logLevel)
 
 	hd := newHetznerDriver()
 	h := volume.NewHandler(hd)

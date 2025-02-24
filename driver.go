@@ -269,7 +269,7 @@ func (hd *hetznerDriver) removeInternal(req *volume.RemoveRequest) error {
 			return fmt.Errorf("detaching volume %q: %w", prefixedName, err)
 		}
 		if err := hd.waitForAction(act); err != nil {
-			return fmt.Errorf("waiting for volume detachment on %q from %q: %w", vol.Name, vol.Server.Name, err)
+			return fmt.Errorf("waiting for volume detachment on %q: %w", prefixedName, err)
 		}
 	}
 
@@ -467,19 +467,19 @@ func (hd *hetznerDriver) getServerForLocalhost() (*hcloud.Server, error) {
 		logrus.Errorf("Failed to get local hostname: %v", err)
 		return nil, fmt.Errorf("failed to get local hostname: %w", err)
 	}
-	logrus.Infof("Using hostname %q for Hetzner server lookup", hostname)
-
+	logrus.Infof("Looking up Hetzner server with hostname %q", hostname)
+	
 	srv, _, err := hd.client.Server().GetByName(context.Background(), hostname)
 	if err != nil {
-		logrus.Errorf("Failed to get server by name %q: %v", hostname, err)
-		return nil, fmt.Errorf("failed to get server by name %q: %w", hostname, err)
+		logrus.Errorf("Failed to get Hetzner server by hostname %q: %v", hostname, err)
+		return nil, fmt.Errorf("failed to get Hetzner server by hostname %q: %w", hostname, err)
 	}
 	if srv == nil {
-		logrus.Errorf("No server found with name %q", hostname)
-		return nil, fmt.Errorf("no server found with name %q", hostname)
+		logrus.Errorf("No Hetzner server found with hostname %q", hostname)
+		return nil, fmt.Errorf("no Hetzner server found with hostname %q", hostname)
 	}
-
-	logrus.Infof("Found Hetzner server: ID=%d, Name=%q, Status=%q", srv.ID, srv.Name, srv.Status)
+	
+	logrus.Infof("Found Hetzner server %q (ID: %d) matching local hostname", srv.Name, srv.ID)
 	return srv, nil
 }
 

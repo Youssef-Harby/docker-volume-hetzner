@@ -115,3 +115,35 @@ applies to the docker volumes using them. This also precludes concurrent use by 
 since there is currently no way to enforce docker swarm services to be managed together (cf. kubernetes pods).
 - *Single location*: since volumes are currently bound to the location they were created in, this plugin will not
 be able to move volumes between nodes in different locations.
+
+## Troubleshooting
+
+### Hostname Mismatch Error
+
+If you encounter an error like this when creating a volume:
+
+```shell
+Error response from daemon: create test-volume: VolumeDriver.Create: last failure too recent; failed 1 times in a row before this; retry in 999.349515ms
+```
+
+This usually indicates that your Docker host's hostname doesn't match the server name in your Hetzner Cloud project. Here's how to fix it:
+
+1. Check your Docker host's hostname:
+   ```shell
+   hostname
+   ```
+
+2. Compare this with your server name in the Hetzner Cloud Console
+
+3. Make sure they match exactly. If they don't, you have two options:
+
+   a. Change your Docker host's hostname to match the Hetzner Cloud server name:
+   ```shell
+   sudo hostnamectl set-hostname your-hetzner-server-name
+   ```
+   
+   b. Or rename your server in the Hetzner Cloud Console to match your Docker host's hostname
+
+4. After fixing the hostname, wait for the backoff period (usually a few seconds) and try creating the volume again.
+
+**Note**: Any changes to the hostname must persist across reboots. On most Linux systems, you'll need to update `/etc/hostname` as well.
