@@ -79,7 +79,10 @@ func (hd *hetznerDriver) createInternal(req *volume.CreateRequest) error {
 		Name:     prefixedName,
 		Size:     size,
 		Location: srv.Datacenter.Location, // attach explicitly to be able to wait
-		Labels:   map[string]string{"docker-volume-hetzner": ""},
+		Labels:   map[string]string{
+			"docker-volume-hetzner": "",
+			"fstype":               getOption("fstype", req.Options),
+		},
 	}
 	switch f := getOption("fstype", req.Options); f {
 	case "xfs", "ext4":
@@ -378,6 +381,15 @@ func (hd *hetznerDriver) mountInternal(req *volume.MountRequest) (*volume.MountR
 	}
 	if !mounted {
 		return nil, fmt.Errorf("mounting %q as any of %s: %w", vol.LinuxDevice, supportedFileystemTypes, err)
+	}
+
+	// After successful mount, attempt to resize the filesystem if needed
+	if fstype := vol.Labels["fstype"]; fstype != "" {
+		logrus.Infof("Checking and resizing %s filesystem on %s if needed", fstype, vol.LinuxDevice)
+		if err := resizeFS(vol.LinuxDevice, fstype, mountpoint); err != nil {
+			logrus.Warnf("Failed to resize filesystem: %v", err)
+			// Continue anyway as the filesystem might already be the correct size
+		}
 	}
 
 	logrus.Infof("successfully mounted %q on %q", prefixedName, mountpoint)
